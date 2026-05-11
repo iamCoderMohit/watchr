@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import ably from "@/lib/ably";
-import type { Types } from "ably";
+import type { RealtimeChannel } from "ably";
 
 type SyncEvent =
   | { type: "play";  currentTime: number }
@@ -16,8 +16,8 @@ interface UseVideoSyncOptions {
 }
 
 export function useVideoSync({ roomId, isHost, player }: UseVideoSyncOptions) {
-  const channelRef    = useRef<Types.RealtimeChannelPromise | null>(null);
-  const isSyncingRef  = useRef(false); // prevents echo loops
+  const channelRef   = useRef<RealtimeChannel | null>(null);
+  const isSyncingRef = useRef(false);
 
   useEffect(() => {
     if (!roomId) return;
@@ -25,13 +25,12 @@ export function useVideoSync({ roomId, isHost, player }: UseVideoSyncOptions) {
     const channel = ably.channels.get(`room:${roomId}`);
     channelRef.current = channel;
 
-    // ── Subscriber (everyone including host) ──
+    // Subscribers (non-host viewers) respond to host events
     channel.subscribe((msg) => {
+      console.log("[sync received]", msg.data);
       const event = msg.data as SyncEvent;
       if (!player) return;
-
-      // Ignore events we published ourselves
-      if (isSyncingRef.current) return;
+      if (isSyncingRef.current) return; // ignore own echoes
 
       switch (event.type) {
         case "play":
@@ -48,12 +47,9 @@ export function useVideoSync({ roomId, isHost, player }: UseVideoSyncOptions) {
       }
     });
 
-    return () => {
-      channel.unsubscribe();
-    };
+    return () => { channel.unsubscribe(); };
   }, [roomId, player]);
 
-  // ── Publisher helpers (host only) ──
   const publish = (event: SyncEvent) => {
     if (!isHost || !channelRef.current) return;
     isSyncingRef.current = true;
@@ -61,9 +57,25 @@ export function useVideoSync({ roomId, isHost, player }: UseVideoSyncOptions) {
     setTimeout(() => { isSyncingRef.current = false; }, 300);
   };
 
-  const emitPlay  = () => publish({ type: "play",  currentTime: player?.getCurrentTime() ?? 0 });
-  const emitPause = () => publish({ type: "pause", currentTime: player?.getCurrentTime() ?? 0 });
-  const emitSeek  = (t: number) => publish({ type: "seek", currentTime: t });
+  const emitPlay = () => {
+    if (!player) return;
+    const currentTime = player.getCurrentTime() ?? 0;
+    player.playVideo();                          // play host's own player
+    publish({ type: "play", currentTime });      // broadcast to everyone else
+  };
+
+  const emitPause = () => {
+    if (!player) return;
+    const currentTime = player.getCurrentTime() ?? 0;
+    player.pauseVideo();                         // pause host's own player
+    publish({ type: "pause", currentTime });     // broadcast to everyone else
+  };
+
+  const emitSeek = (t: number) => {
+    if (!player) return;
+    player.seekTo(t, true);                      // seek host's own player
+    publish({ type: "seek", currentTime: t });   // broadcast to everyone else
+  };
 
   return { emitPlay, emitPause, emitSeek };
 }

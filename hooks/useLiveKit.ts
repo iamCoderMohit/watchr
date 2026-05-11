@@ -8,6 +8,8 @@ import {
   RemoteParticipant,
   LocalParticipant,
   Track,
+  RemoteTrack,
+  RemoteTrackPublication,
   type LocalVideoTrack,
   type RemoteVideoTrack,
 } from "livekit-client";
@@ -22,6 +24,11 @@ export interface LiveKitParticipant {
   videoTrack: LocalVideoTrack | RemoteVideoTrack | null;
 }
 
+export interface BlockedState {
+  limit:      number;
+  canUpgrade: boolean;
+}
+
 interface UseLiveKitOptions {
   roomId:   string;
   userId:   string;
@@ -30,12 +37,7 @@ interface UseLiveKitOptions {
 }
 
 function toInitials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
 function mapParticipant(
@@ -45,7 +47,6 @@ function mapParticipant(
 ): LiveKitParticipant {
   const audioPub = p.getTrackPublication(Track.Source.Microphone);
   const videoPub = p.getTrackPublication(Track.Source.Camera);
-
   return {
     id:         p.identity,
     name:       p.name ?? p.identity,
@@ -62,7 +63,7 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function publishWithRetry(room: Room, attempts = 3): Promise<void> {
   for (let i = 0; i < attempts; i++) {
     try {
-      await wait(300 * (i + 1)); // 300ms, 600ms, 900ms
+      await wait(300 * (i + 1));
       await room.localParticipant.enableCameraAndMicrophone();
       return;
     } catch (err) {
@@ -72,11 +73,24 @@ async function publishWithRetry(room: Room, attempts = 3): Promise<void> {
   }
 }
 
+function attachAudio(track: RemoteTrack) {
+  if (track.kind !== Track.Kind.Audio) return;
+  const el = track.attach();
+  el.style.display = "none";
+  document.body.appendChild(el);
+}
+
+function detachAudio(track: RemoteTrack) {
+  if (track.kind !== Track.Kind.Audio) return;
+  track.detach().forEach((el) => el.remove());
+}
+
 export function useLiveKit({ roomId, userId, userName }: UseLiveKitOptions) {
   const roomRef                         = useRef<Room | null>(null);
   const [participants, setParticipants] = useState<LiveKitParticipant[]>([]);
   const [connected,    setConnected]    = useState(false);
   const [error,        setError]        = useState<string | null>(null);
+  const [blocked,      setBlocked]      = useState<BlockedState | null>(null);
 
   function syncParticipants(room: Room) {
     const local  = mapParticipant(room.localParticipant, true, userId);
@@ -91,14 +105,9 @@ export function useLiveKit({ roomId, userId, userName }: UseLiveKitOptions) {
 
   useEffect(() => {
     if (!roomId || !userId) return;
-
     let cancelled = false;
 
-    const roomOptions: RoomOptions = {
-      adaptiveStream: true,
-      dynacast:       true,
-    };
-
+    const roomOptions: RoomOptions = { adaptiveStream: true, dynacast: true };
     const room      = new Room(roomOptions);
     roomRef.current = room;
 
@@ -109,18 +118,15 @@ export function useLiveKit({ roomId, userId, userName }: UseLiveKitOptions) {
         if (cancelled) return;
         setConnected(true);
         sync();
-
-        try {
-          await publishWithRetry(room);
-        } catch (err) {
-          console.error("[LiveKit] cam/mic failed after retries:", err);
+        try { await publishWithRetry(room); } catch (err) {
+          console.error("[LiveKit] cam/mic failed:", err);
         }
-
-        // Sync again after publish settles
         sync();
         setTimeout(sync, 500);
         setTimeout(sync, 1500);
       })
+      .on(RoomEvent.TrackSubscribed,        (track: RemoteTrack, _pub: RemoteTrackPublication, _p: RemoteParticipant) => { attachAudio(track); sync(); })
+      .on(RoomEvent.TrackUnsubscribed,      (track: RemoteTrack) => { detachAudio(track); sync(); })
       .on(RoomEvent.Disconnected,            () => setConnected(false))
       .on(RoomEvent.ParticipantConnected,    sync)
       .on(RoomEvent.ParticipantDisconnected, sync)
@@ -133,6 +139,16 @@ export function useLiveKit({ roomId, userId, userName }: UseLiveKitOptions) {
 
     async function connect() {
       try {
+        // ── Join check first ──
+        const check = await fetch(`/api/rooms/${roomId}/join`);
+        if (check.status === 403) {
+          const body = await check.json();
+          if (!cancelled) setBlocked({ limit: body.limit, canUpgrade: body.upgrade });
+          return;
+        }
+        if (!check.ok) throw new Error("Failed to check room.");
+
+        // ── Get LiveKit token ──
         const res = await fetch(
           `/api/livekit/token?roomId=${roomId}&userId=${userId}&userName=${encodeURIComponent(userName)}`
         );
@@ -148,6 +164,13 @@ export function useLiveKit({ roomId, userId, userName }: UseLiveKitOptions) {
 
     return () => {
       cancelled = true;
+      room.remoteParticipants.forEach((p) => {
+        p.trackPublications.forEach((pub) => {
+          if (pub.track && pub.track.kind === Track.Kind.Audio) {
+            detachAudio(pub.track as RemoteTrack);
+          }
+        });
+      });
       room.disconnect();
     };
   }, [roomId, userId]);
@@ -166,5 +189,5 @@ export function useLiveKit({ roomId, userId, userName }: UseLiveKitOptions) {
     setTimeout(() => syncParticipants(roomRef.current!), 200);
   }
 
-  return { participants, connected, error, toggleMic, toggleCam };
+  return { participants, connected, error, blocked, toggleMic, toggleCam };
 }

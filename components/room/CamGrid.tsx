@@ -8,19 +8,16 @@ interface CamGridProps {
 
 export default function CamGrid({ participants, onInvite }: CamGridProps) {
   return (
-    <div
-      className="grid gap-3"
-      style={{
-        gridTemplateColumns: `repeat(${Math.min(participants.length + 1, 4)}, minmax(0, 1fr))`,
-      }}
-    >
+    <div className="flex flex-row gap-3 flex-wrap">
       {participants.map((p) => (
-        <CamTile key={p.id} {...p} />
+        <div key={p.id} className="w-28 sm:w-32 md:w-36 shrink-0">
+          <CamTile {...p} />
+        </div>
       ))}
 
       {/* Invite slot */}
       {participants.length < 4 && (
-        <div className="flex flex-col items-center gap-2">
+        <div className="w-28 sm:w-32 md:w-36 shrink-0 flex flex-col items-center gap-2">
           <div
             onClick={onInvite}
             className="squircle w-full aspect-square flex items-center justify-center

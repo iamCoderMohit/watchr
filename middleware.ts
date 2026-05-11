@@ -5,6 +5,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/rooms(.*)",
+  "/api/livekit/webhook",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

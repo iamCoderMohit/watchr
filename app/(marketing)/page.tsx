@@ -1,12 +1,11 @@
-import Navbar from "@/components/Navbar";
 import HeroCams from "@/components/landing/HeroCams";
+import Features from "@/components/landing/Features";
 import FeatureGrid from "@/components/landing/FeatureGrid";
 import Button from "@/components/ui/Button";
 
 export default function HomePage() {
   return (
     <main style={{ background: "var(--bg)", minHeight: "100vh" }}>
-      <Navbar />
 
       {/* ── Hero ── */}
       <section className="relative min-h-screen flex items-end overflow-hidden pb-16">
@@ -45,6 +44,9 @@ export default function HomePage() {
       </section>
 
       {/* ── Features ── */}
+      <Features />
+
+      {/* ── Pricing ── */}
       <FeatureGrid />
 
       {/* ── Footer ── */}

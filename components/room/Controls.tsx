@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Reactions from "./Reactions";
+import type { FloatingReaction } from "@/hooks/useReactions";
 
 interface ControlsProps {
   isHost?:       boolean;
@@ -11,6 +13,8 @@ interface ControlsProps {
   onCamToggle?:  () => void;
   onInvite?:     () => void;
   inviteCopied?: boolean;
+  reactions:     FloatingReaction[];
+  onReact:       (emoji: string) => void;
 }
 
 export default function Controls({
@@ -21,6 +25,8 @@ export default function Controls({
   onCamToggle,
   onInvite,
   inviteCopied = false,
+  reactions,
+  onReact,
 }: ControlsProps) {
   const [mic,     setMic]     = useState(true);
   const [cam,     setCam]     = useState(true);
@@ -35,17 +41,16 @@ export default function Controls({
   const handleMic = () => { setMic(!mic); onMicToggle?.(); };
   const handleCam = () => { setCam(!cam); onCamToggle?.(); };
 
-  const personalBtns = [
+  const simpleBtns = [
     { label: "Mic",    icon: mic ? "🎙" : "🔇", active: !mic, onClick: handleMic },
     { label: "Cam",    icon: cam ? "📷" : "🚫", active: !cam, onClick: handleCam },
-    { label: "React",  icon: "😄",               active: false },
-    {
-      label: inviteCopied ? "Copied!" : "Invite",
-      icon:  inviteCopied ? "✅"      : "🔗",
-      active: false,
-      onClick: onInvite,
-    },
   ];
+
+  const inviteBtn = {
+    label:   inviteCopied ? "Copied!" : "Invite",
+    icon:    inviteCopied ? "✅"      : "🔗",
+    onClick: onInvite,
+  };
 
   return (
     <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -71,7 +76,9 @@ export default function Controls({
 
       {/* Personal controls */}
       <div className="flex items-center gap-1 bg-[var(--bg-muted)] rounded-full px-3 py-2">
-        {personalBtns.map((btn) => (
+
+        {/* Mic + Cam */}
+        {simpleBtns.map((btn) => (
           <div key={btn.label} className="flex flex-col items-center gap-1">
             <button
               onClick={btn.onClick}
@@ -89,6 +96,24 @@ export default function Controls({
             </span>
           </div>
         ))}
+
+        {/* Reactions — has its own picker popup */}
+        <Reactions reactions={reactions} onSend={onReact} />
+
+        {/* Invite */}
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={inviteBtn.onClick}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-base
+                       text-[var(--ink)] hover:bg-[var(--border)] transition-colors cursor-pointer"
+          >
+            {inviteBtn.icon}
+          </button>
+          <span className="text-[10px] text-[var(--ink-faint)] tracking-tight">
+            {inviteBtn.label}
+          </span>
+        </div>
+
       </div>
     </div>
   );

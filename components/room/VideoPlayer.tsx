@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import ProgressBar  from "./ProgressBar";
+import JoinOverlay  from "./JoinOverlay";
 import YT from "youtube";
 
 interface VideoPlayerProps {
-  videoId: string;
-  isHost: boolean;
+  videoId:  string;
+  isHost:   boolean;
   onReady?: (player: YT.Player) => void;
+  onSeek?:  (t: number) => void;
 }
 
 declare global {
@@ -16,9 +19,11 @@ declare global {
   }
 }
 
-export default function VideoPlayer({ videoId, isHost, onReady }: VideoPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef    = useRef<YT.Player | null>(null);
+export default function VideoPlayer({ videoId, isHost, onReady, onSeek }: VideoPlayerProps) {
+  const containerRef              = useRef<HTMLDivElement>(null);
+  const playerRef                 = useRef<YT.Player | null>(null);
+  const [ready,     setReady]     = useState(false);
+  const [activated, setActivated] = useState(isHost); // hosts don't need the overlay
 
   useEffect(() => {
     const initPlayer = () => {
@@ -26,13 +31,17 @@ export default function VideoPlayer({ videoId, isHost, onReady }: VideoPlayerPro
       playerRef.current = new window.YT.Player(containerRef.current, {
         videoId,
         playerVars: {
-          controls: isHost ? 1 : 0, // only host sees native controls
+          controls:       0,
           modestbranding: 1,
-          rel: 0,
+          rel:            0,
           iv_load_policy: 3,
+          disablekb:      1,
         },
         events: {
-          onReady: (e) => onReady?.(e.target),
+          onReady: (e) => {
+            setReady(true);
+            onReady?.(e.target);
+          },
         },
       });
     };
@@ -40,7 +49,6 @@ export default function VideoPlayer({ videoId, isHost, onReady }: VideoPlayerPro
     if (window.YT?.Player) {
       initPlayer();
     } else {
-      // Load the API script once
       if (!document.getElementById("yt-api")) {
         const tag = document.createElement("script");
         tag.id  = "yt-api";
@@ -50,14 +58,40 @@ export default function VideoPlayer({ videoId, isHost, onReady }: VideoPlayerPro
       window.onYouTubeIframeAPIReady = initPlayer;
     }
 
-    return () => {
-      playerRef.current?.destroy();
-    };
+    return () => { playerRef.current?.destroy(); };
   }, [videoId]);
 
+  function handleActivate() {
+    // Mute + play + immediately pause — this gesture unlocks autoplay for future calls
+    try {
+      playerRef.current?.mute();
+      playerRef.current?.playVideo();
+      setTimeout(() => {
+        playerRef.current?.pauseVideo();
+        playerRef.current?.unMute();
+      }, 300);
+    } catch {}
+    setActivated(true);
+  }
+
   return (
-    <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black">
-      <div ref={containerRef} className="w-full h-full" />
+    <div className="flex flex-col gap-2 w-full">
+      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black">
+        <div ref={containerRef} className="w-full h-full" />
+
+        {/* Overlay for non-hosts until they click */}
+        {!activated && ready && (
+          <JoinOverlay onActivate={handleActivate} />
+        )}
+      </div>
+
+      {ready && (
+        <ProgressBar
+          player={playerRef.current}
+          isHost={isHost}
+          onSeek={onSeek}
+        />
+      )}
     </div>
   );
 }
