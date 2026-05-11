@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import YT from "youtube";
 
 interface VideoPlayerProps {
   videoId: string;
