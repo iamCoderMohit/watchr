@@ -59,7 +59,7 @@ export default function Navbar() {
             <Link href="/dashboard">
               <Button variant="ghost" size="sm">Dashboard</Button>
             </Link>
-            <UserButton afterSignOutUrl="/" />
+            <UserButton/>
           </>
         ) : (
           <>
