@@ -1,26 +1,116 @@
 @import "tailwindcss";
 
+/* ── CSS variables ── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #ffffff;
+  --bg-muted: #f5f5f3;
+  --ink: #0a0a0a;
+  --ink-muted: #6b6b6b;
+  --ink-faint: #c0c0bc;
+  --border: #e4e4e0;
+  --pill-bg: #0a0a0a;
+  --pill-fg: #ffffff;
+  --pill-icon: #ffffff;
+  --cam-bg: #f0efeb;
+  --cta-bg: #0a0a0a;
+  --cta-fg: #ffffff;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --bg: #0a0a0a;
+  --bg-muted: #141414;
+  --ink: #f0f0ee;
+  --ink-muted: #888884;
+  --ink-faint: #3a3a38;
+  --border: #222220;
+  --pill-bg: #1e1e1e;
+  --pill-fg: #f0f0ee;
+  --pill-icon: #f0f0ee;
+  --cam-bg: #1a1a1a;
+  --cta-bg: #f0f0ee;
+  --cta-fg: #0a0a0a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg);
+  color: var(--ink);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* ── Squircle cam tiles ── */
+.squircle {
+  border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%;
+}
+
+.squircle-alt {
+  border-radius: 60% 40% 40% 60% / 50% 60% 40% 50%;
+}
+
+.squircle-3 {
+  border-radius: 50% 50% 40% 60% / 60% 40% 60% 40%;
+}
+
+.squircle-4 {
+  border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
+}
+
+/* ── Pill navbar ── */
+.pill-nav {
+  background: var(--pill-bg);
+  color: var(--pill-fg);
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 6px 6px 6px 20px;
+  transition: background 0.3s ease;
+}
+
+/* ── Animations ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(1deg); }
+}
+
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(10px) rotate(-1deg); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-float        { animation: float 6s ease-in-out infinite; }
+.animate-float-r      { animation: float-reverse 5s ease-in-out infinite; }
+.animate-float-slow   { animation: float 8s ease-in-out infinite; }
+.animate-float-mid    { animation: float 5s ease-in-out infinite 1.2s; }
+.animate-float-fast   { animation: float 3.8s ease-in-out infinite 0.4s; }
+
+.animate-fade-up      { animation: fadeUp 0.7s ease forwards; }
+.animate-fade-up-d1   { animation: fadeUp 0.7s ease 0.1s forwards; opacity: 0; }
+.animate-fade-up-d2   { animation: fadeUp 0.7s ease 0.2s forwards; opacity: 0; }
+.animate-fade-up-d3   { animation: fadeUp 0.7s ease 0.35s forwards; opacity: 0; }
+.animate-fade-up-d4   { animation: fadeUp 0.7s ease 0.5s forwards; opacity: 0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ink-faint); border-radius: 9999px; }
